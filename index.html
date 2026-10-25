@@ -161,7 +161,7 @@ footer{margin-top:44px;background:var(--ink);color:#c9c2d1;text-align:center;pad
 
 <script>
 /* ============ EDIT THESE ============ */
-const WHATSAPP_NUMBER = "919999999999"; // country code + number, digits only (91 = India)
+const WHATSAPP_NUMBER = "919906786291"; // country code + number, digits only (91 = India)
 const SHOP_NAME = "Lone Crafts";
 /* Where products come from. Use "products.csv" (file in this repo) OR paste your Google Sheet
    "Publish to web" CSV link here. Leave "" to use the sample list below. */
@@ -246,7 +246,7 @@ function buildMessage(){
   m+=`\n\nPlease confirm availability and price.`;
   return m;
 }
-function waCheck(e){if(WHATSAPP_NUMBER==="919999999999"){e.preventDefault();toast("Set your WhatsApp number in index.html first");return false}return true}
+function waCheck(e){if(WHATSAPP_NUMBER==="919906786291"){e.preventDefault();toast("Set your WhatsApp number in index.html first");return false}return true}
 function buy(){
   if(!count()){toast("Add something to the cart first");return}
   if(!waCheck({preventDefault(){}}))return;
