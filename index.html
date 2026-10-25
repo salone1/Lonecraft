@@ -38,7 +38,7 @@ header{position:sticky;top:0;z-index:20;background:var(--crocus);color:#fff;disp
 @media(min-width:980px){.grid{grid-template-columns:repeat(4,1fr)}}
 .card{background:var(--card);border-radius:14px;overflow:hidden;border:1px solid var(--line);display:flex;flex-direction:column}
 .art{position:relative;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;overflow:hidden}
-.art img{width:100%;height:100%;object-fit:cover}
+.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .art svg{width:46%;opacity:.9}
 .heart{position:absolute;top:8px;right:8px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.9);font-size:1.15rem;color:var(--chinar)}
 .info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
@@ -162,9 +162,11 @@ footer{margin-top:44px;background:var(--ink);color:#c9c2d1;text-align:center;pad
 /* ============ EDIT THESE ============ */
 const WHATSAPP_NUMBER = "919906786291"; // country code + number, digits only (91 = India)
 const SHOP_NAME = "Lone Crafts";
-/* Products. To add one: copy a line, give it a NEW article number.
-   Add photos by putting files in an "images" folder and setting img:"images/yourfile.jpg" */
-const P = [
+/* Where products come from. Use "products.csv" (file in this repo) OR paste your Google Sheet
+   "Publish to web" CSV link here. Leave "" to use the sample list below. */
+const PRODUCTS_SOURCE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR-JzRVAFn6o-3a1jyLlQV2az4yY2cOYSN8XH9ofBq0rkT2YQzS249HcTIUn6KN19mQSTvr_UkFHfJt/pub?output=csv";
+/* Sample products, only used if products.csv / your sheet cannot be loaded. Normally you do NOT edit this. */
+const FALLBACK = [
  // [article no, category, name, short description, colour, img]
  ["LC-SHW-001","Shawls","Pure Pashmina Shawl","Fine, warm and light. Plain with hand-hemmed edges.","#4b2e5a",""],
  ["LC-SHW-002","Shawls","Kani Weave Shawl","Hand-woven kani with traditional motifs.","#a63a1f",""],
@@ -182,7 +184,8 @@ const P = [
  ["LC-DRY-004","Dry Fruits","Dry Figs (Anjeer)","Chewy and sweet. 250 g / 500 g.","#6b4a5e",""],
  ["LC-KES-001","Kesar","Pampore Kesar","Deep-red saffron threads. 1 g / 5 g / 10 g.","#c4372a",""],
  ["LC-KES-002","Kesar","Kesar Gift Box","Saffron packed for gifting.","#c4372a",""]
-].map(a=>({id:a[0],cat:a[1],name:a[2],desc:a[3],color:a[4],img:a[5]}));
+].map(a=>({id:a[0],cat:a[1],name:a[2],desc:a[3],color:a[4],img:a[5],out:false}));
+let P = FALLBACK;
 
 /* ============ APP ============ */
 const $=s=>document.querySelector(s);
@@ -190,10 +193,16 @@ const paisley='<svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let cart=load("lc_cart",{}), wish=load("lc_wish",[]), cat="All", term="", onlyWish=false;
+const EXT=["jpg","jpeg","png","webp"];
+function imgFail(el){const t=+el.dataset.t+1;if(t>8||t>=EXT.length){el.remove();return}el.dataset.t=t;el.src="images/"+el.dataset.id+"."+EXT[t]}
+function driveFix(u){u=(u||"").split(/\s+/)[0];const m=u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^ ]*id=)([\w-]+)/);return m?"https://drive.google.com/thumbnail?id="+m[1]+"&sz=w800":u}
+function parseCSV(t){const rows=[];let r=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==','){r.push(f);f=""}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);rows.push(r);r=[];f=""}else f+=c}if(f!==""||r.length){r.push(f);rows.push(r)}return rows}
+const PAL=["#4b2e5a","#a63a1f","#1f4e4a","#7a5c3e","#8a2f52","#2f3e6e","#b35a1f","#6b4a5e"];
+function fromCSV(t){const rows=parseCSV(t).filter(r=>r.some(x=>x.trim()));if(rows.length<2)return null;const h=rows[0].map(x=>x.trim().toLowerCase());const col=(...n)=>h.findIndex(x=>n.some(k=>x.includes(k)));const iA=col("article"),iC=col("categ"),iN=col("name"),iD=col("desc"),iP=col("photo","image"),iS=col("stock","avail");if(iN<0)return null;const ci={},seen={},out=[];const get=(r,i)=>(i>=0&&r[i]||"").trim();rows.slice(1).forEach((r,k)=>{const name=get(r,iN);if(!name)return;const cat=get(r,iC)||"Other";if(!(cat in ci))ci[cat]=Object.keys(ci).length;let id=get(r,iA)||"LC-"+cat.slice(0,3).toUpperCase()+"-"+String(k+1).padStart(3,"0");if(seen[id])id+="-"+(k+1);seen[id]=1;out.push({id,cat,name,desc:get(r,iD),color:PAL[ci[cat]%PAL.length],img:driveFix(get(r,iP)),out:/^(no|out|sold|unavail|0)/i.test(get(r,iS))})});if(h.some(x=>x.includes("timestamp")))out.reverse();return out.length?out:null}
 const byId=id=>P.find(p=>p.id===id);
 
 function artHTML(p){
-  const inner=p.img?`<img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.remove()">`:"";
+  const inner=`<img src="${p.img||"images/"+p.id+".jpg"}" alt="${p.name}" loading="lazy" data-id="${p.id}" data-t="${p.img?9:0}" onerror="imgFail(this)">`;
   return `<div class="art" style="background:linear-gradient(145deg,${p.color},#1e1a24)" data-open="${p.id}">${paisley}${inner}<button class="heart" data-wish="${p.id}" aria-label="Save ${p.name}">${wish.includes(p.id)?"♥":"♡"}</button></div>`;
 }
 function renderChips(){
@@ -208,7 +217,7 @@ function renderGrid(){
    :`<p class="empty">${onlyWish?"You haven't saved anything yet. Tap the heart on a product.":"No product matches your search. Try another word or article number."}</p>`;
   if(typeof sync==="function"&&document.readyState!=="loading"&&window.__ready)sync();
 }
-function rowIn(id){const q=cart[id]||0;return q?`<div class="qty live"><button data-dec="${id}" aria-label="Remove one">−</button><span aria-live="polite">${q}</span><button data-inc="${id}" aria-label="Add one">+</button></div><span class="inc">In cart</span>`:`<button class="add" data-add="${id}">Add to cart</button>`}
+function rowIn(id){const pp=byId(id);if(pp&&pp.out)return `<span class="inc" style="color:var(--chinar)">Currently unavailable</span>`;const q=cart[id]||0;return q?`<div class="qty live"><button data-dec="${id}" aria-label="Remove one">−</button><span aria-live="polite">${q}</span><button data-inc="${id}" aria-label="Add one">+</button></div><span class="inc">In cart</span>`:`<button class="add" data-add="${id}">Add to cart</button>`}
 function count(){return Object.values(cart).reduce((a,b)=>a+b,0)}
 function sync(){
   save("lc_cart",cart);save("lc_wish",wish);
@@ -241,38 +250,4 @@ function buy(){
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildMessage())}`,"_blank");
 }
 function openCart(){$("#drawer").classList.add("show");$("#ov").classList.add("show")}
-function closeAll(){$("#drawer").classList.remove("show");$("#modal").classList.remove("show");$("#ov").classList.remove("show")}
-function openModal(id){
-  const p=byId(id);
-  $("#modal").innerHTML=`<button class="x" data-close aria-label="Close">✕</button>${artHTML(p)}<div class="info"><span class="an">Article No: ${p.id}</span><h3 style="font-size:1.35rem">${p.name}</h3><p style="font-size:.95rem">${p.desc}</p><p>Category: ${p.cat}</p>
-  <div class="row" data-row="${p.id}">${rowIn(p.id)}</div>
-  <p style="margin-top:12px"><a href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hello ${SHOP_NAME}, I have a question about ${p.name} (Article No: ${p.id}).`)}" target="_blank" rel="noopener" style="color:var(--wa);font-weight:700">Ask about this product on WhatsApp</a></p></div>`;
-  $("#modal").classList.add("show");$("#ov").classList.add("show");
-}
-
-document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-cat],[data-add],[data-inc],[data-dec],[data-wish],[data-open],[data-rm],[data-close]");
-  if(!t)return;const d=t.dataset;
-  if(d.cat){cat=d.cat;onlyWish=false;renderChips();renderGrid()}
-  else if(d.add){cart[d.add]=1;sync();toast("Added to cart")}
-  else if(d.inc){cart[d.inc]=Math.min(99,(cart[d.inc]||0)+1);sync()}
-  else if(d.dec){if((cart[d.dec]||0)<=1){delete cart[d.dec];toast("Removed from cart")}else cart[d.dec]--;sync()}
-  else if(d.wish){const i=wish.indexOf(d.wish);i<0?wish.push(d.wish):wish.splice(i,1);sync();if(onlyWish&&i>=0){renderGrid();sync()}}
-  else if(d.open)openModal(d.open);
-  else if(d.rm){delete cart[d.rm];sync()}
-  else if("close" in d)closeAll();
-});
-$("#q").addEventListener("input",e=>{term=e.target.value;renderGrid()});
-$("#cartBtn").onclick=openCart;$("#barView").onclick=openCart;$("#closeCart").onclick=closeAll;$("#ov").onclick=closeAll;
-$("#barBuy").onclick=buy;$("#buy").onclick=buy;
-$("#clear").onclick=()=>{cart={};sync()};
-$("#wishBtn").onclick=()=>{onlyWish=!onlyWish;toast(onlyWish?"Showing saved items":"Showing all items");renderChips();renderGrid();if(onlyWish)document.getElementById("shop").scrollIntoView()};
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAll()});
-const chat=`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello "+SHOP_NAME+", I have a question.")}`;
-$("#fab").href=chat;$("#chatLink").href=chat;$("#fab").target=$("#chatLink").target="_blank";
-$("#yr").textContent=new Date().getFullYear();
-Object.keys(cart).forEach(id=>{if(!byId(id))delete cart[id]});wish=wish.filter(byId);
-window.__ready=1;renderChips();renderGrid();
-</script>
-</body>
-</html>
+function closeAll(){$("#drawer").classList.remove("show");$("#modal").classList.remove("show");$("#ov").classLi
