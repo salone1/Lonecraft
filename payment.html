@@ -68,7 +68,7 @@ const PAYEE_NAME      = "Salis Amin Lone";             // name shown in UPI apps
 const UPI_ID          = "6006598481@upi";            // your UPI ID
 const PAYMENT_LINK    = "upi://pay?pa=6006598481@upi";                        // PhonePe / Razorpay / Paytm payment link. Leave "" to hide the button
 const QR_IMAGE        = "";                        // optional: your own QR file, e.g. "images/qr.png". Leave "" to auto-generate from UPI_ID
-const FORM_LINK       = "";                        // your Google Form link (docs.google.com/forms/...)
+const FORM_LINK       = "https://forms.gle/qMkA9mFjNgTDBpsc6";                        // your Google Form link (docs.google.com/forms/...)
 /* ====================================== */
 const $=s=>document.querySelector(s);
 const upiURI=`upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(PAYEE_NAME)}&cu=INR`;
